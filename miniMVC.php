@@ -1,6 +1,13 @@
 <?php
-class Controller 
+class miniMVC 
 {
+	/**
+	 * directory from which are taken layout files relatives to APP_PATH
+	 * defaults to "layout"
+	 * @var string
+	 **/
+	protected static $layout_directory = 'layout';
+	
 	
 	/**
 	 * Fa una richiesta in get
@@ -70,7 +77,9 @@ class Controller
 	} // private function render
 	
 	
-	// METODI STATICI -----------------------------------------------------
+	/* STATIC METHODS ---------------------------------------------------------------------------- */
+	
+	
 	
 	/**
 	 * Renderizza un layout e lo ritorna
@@ -79,7 +88,7 @@ class Controller
 	 * @param unknown_type $contextArray
 	 */
 	public static function _render($layout, $contextArray=array()){
-		$filename = APP_PATH .'/layout/' .$layout.'.php';
+		$filename = APP_PATH .'/'. self::$layout_directory .'/'. $layout .'.php';
 		if(file_exists($filename)){
 			ob_start();
 			$context = (object) $contextArray;
@@ -187,5 +196,73 @@ class Controller
 		}		
 		return true;
 	} // public static function route
+	
+	
+	
+	/*
+	 * SETTERS
+	 */
+	
+	/**
+	 * Set layout directory
+	 *
+	 * @return void
+	 * @author mogui
+	 **/
+	public static function setLayoutDirectory($dir){
+		self::$layout_directory = $dir;
+	}
+	
 }
+
+
+
+
+
+/**
+ * Registry
+ * 
+ * Semplice registro statico!
+ * @author niko
+ *
+ */ 
+class Registry
+{
+	/**
+	 * Array that store values 
+	 * @var unknown_type
+	 */
+	private static $storage=array();
+	
+	
+	/**
+	 * Set a value in the registry
+	 * 
+	 * @param unknown_type $key
+	 * @param unknown_type $var
+	 */
+	public static function set($key,$var){
+		self::$storage[$key] = $var;
+	}
+	
+	
+	/**
+	 * get a value from the registry
+	 * 
+	 * @param unknown_type $key
+	 * @throws Exception
+	 */
+	public static function get($key){
+		if(isset(self::$storage[$key])){
+			return self::$storage[$key];
+		}else{
+			throw new Exception("Value not Found in the registry");
+		}
+	}
+}
+
+
+
+
+
 ?>
