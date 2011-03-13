@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-require_once("../miniMVC.php");
+require_once("../miniVC.php");
 
 if(DEBUG){
 	error_reporting(E_ERROR | E_WARNING | E_PARSE);
@@ -9,13 +9,12 @@ if(DEBUG){
 	error_reporting(0);
 }
 
-miniMVC::$debug = true;
-$app = miniMVC::getInstance();
+miniVC::$debug = true;
+$app = miniVC::getInstance();
 
 $app->setUrls(array(
-	'^/$'=>'/admin/hello/',
-	'^/ecco/([0-9]*)$' => 'test/add/$1',
-	'^/remove' => 'test/remove'
+	'^/$'=>'/hello/world/',
+	'^/extends/([\w]*)/$' => 'hello/extends_world/$1'
 ));
 $app->setControllerDirectory('controllers');
 

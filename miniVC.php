@@ -3,7 +3,7 @@
  * 
  * the default / preferred directory structure is as follow:
  * this file has to be incuded by the index of the site
- * the index is the pnly access point of the app so it's better if all trhe rest is outside web access
+ * the index is the only access point of the app so it's better if all trhe rest is outside web access
  * as this structure suggest
  * 	root/
  *		public/
@@ -17,7 +17,7 @@
  * @author mogui
  * @version 1.0
  * @copyright mogui, 29 December, 2010
- * @package miniMVC
+ * @package miniVC
  **/
 
 
@@ -28,10 +28,10 @@ define('APP_PATH', dirname(__FILE__));
 /**
  * Basic MVC handler
  *
- * @package miniMVC
+ * @package miniVC
  * @author mogui
  **/
-class miniMVC 
+class miniVC 
 {
 	/**
 	 * directory from which are taken layout files relatives to APP_PATH
@@ -58,15 +58,15 @@ class miniMVC
 	
 	/**
 	 * Array that store values
-	 * as a Registry 
+	 * as a Registry to have global objects
 	 * @var unknown_type
 	 */
 	private static $registry = array();
 	
 	/**
-	 * var that stores the instance of the miniMVC
-	 *
-	 * @var miniMVC
+	 * var that stores the instance of the miniVC
+	 * (implement the singleton)
+	 * @var miniVC
 	 **/
 	private static $instance;
 	
@@ -78,7 +78,7 @@ class miniMVC
 	public static $debug = false;
 	
 	/**
-	 * Privaet constructor
+	 * Private constructor
 	 */
 	private function __construct(){
 		
@@ -89,7 +89,7 @@ class miniMVC
 	 */
 	public static function getInstance() { 
 		if(!self::$instance) { 
-			self::$instance = new miniMVC(); 
+			self::$instance = new miniVC(); 
 	    }
 		return self::$instance ;
 	} // public static function getInstance()
@@ -97,7 +97,9 @@ class miniMVC
 		
 	/**
 	 * Manage url routing
-	 * firstly search 
+	 * Takes the uri and first try to match it against self::$urls array (an assoc array 
+	 * that maps regex uri => /controller/action ) if it doesn't find anything in that match in the array it treats
+	 * the uri as /controller/action
 	 * 
 	 * 
 	 * @param unknown_type $request_uri
@@ -111,6 +113,7 @@ class miniMVC
 		spl_autoload_register(array($this, 'customLoader'));
 		
 		if(self::$urls != null){
+			// swap the url matching with the call using clean_uri
 			foreach(self::$urls as $url => $call){
 				$new = preg_replace("|$url|sm",$call, $clean_uri);
 				if($new != $clean_uri){
@@ -120,11 +123,13 @@ class miniMVC
 			}
 		}
 		
+		// we explode teh current uri 
 		$tmp = array_filter(explode("/", $clean_uri));
 		
 		if (count($tmp)==0) {
-			// Front Page
+			// we are in the Front Page
 			if($frontPageCallback != null){
+				// we MUST have a special call back for the front page
 				call_user_func($frontPageCallback);
 			}else{
 				return false;
@@ -137,6 +142,7 @@ class miniMVC
 			$controller = ucfirst(array_shift($tmp)) .'Controller';
 			$method = array_shift($tmp);
 
+			// We fire up the methods
 			try {
 				if (method_exists($controller, $method)){
 					$obj = new $controller;
@@ -145,7 +151,7 @@ class miniMVC
 					self::manageError("Methods or Class doesn't exist");
 				}
 			} catch (Exception $e){
-				$this->manageError($e->getMessage());
+				self::manageError($e->getMessage());
 			}			
 		}		
 		return true;
@@ -154,7 +160,7 @@ class miniMVC
 	
 	
 	/**
-	 * undocumented function
+	 * Custom dynamic loader
 	 *
 	 * @return void
 	 * @author mogui
@@ -256,7 +262,7 @@ class miniMVC
 		}
 	}
 	
-} // END class miniMVC 
+} // END class miniVC 
 
 
 
@@ -266,26 +272,28 @@ class miniMVC
 /**
  * Basic Controller
  *
- * @package miniMVC
+ * All controllers must extend from this class, it has some facility methods to manage request, redirect, and ajax
+ *
+ * @package miniVC
  * @author mogui
  **/
 class Controller 
 {
 	/**
-	 * Fa una richiesta in get
+	 * Do a GET request with cURL
+	 * using the class static method
 	 * 
-	 * @param unknown_type $url
-	 * @param unknown_type $data
+	 * @param string $url
+	 * @param string $data
 	 */
 	protected function getRequest($url, $data=null){
-		
 		return self::_getRequest($url, $data);
 	}// protected function getRequest
 	
 	
 	
 	/**
-	 * Controlla se è una richiesta ajax
+	 * Check if the current request is Ajax
 	 */
 	protected function isAjax(){
 		if(isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH'])) return true;
@@ -294,9 +302,9 @@ class Controller
 	
 	
 	/**
-	 * Clean a value
+	 * Clean a single string value
 	 * 
-	 * @param unknown_type $value
+	 * @param string $value
 	 */
 	protected function cleanString($value, $escapehtml=false){
 		if (get_magic_quotes_gpc()) $value = stripslashes($value);
@@ -306,10 +314,11 @@ class Controller
 		return $value;
 	}// protected function cleanString
 	
+	
 	/**
 	 * Return cleaned value Array
 	 * 
-	 * @param unknown_type $mixed
+	 * @param array $mixed
 	 */
 	protected function cleanArray(array $array, $escapehtml=false){
 		array_walk($array, array($this,'_cleanArray'), $escapehtml);	
@@ -328,7 +337,7 @@ class Controller
 	
 	
 	/**
-	 * Renderizza il layout e lo stampa
+	 * Renders a layout and output it
 	 * 
 	 * @param unknown_type $layout
 	 * @param unknown_type $contextArray
@@ -336,45 +345,59 @@ class Controller
 	protected function render($layout, $contextArray=array()){
 		echo self::_render($layout, $contextArray);
 		exit();
-	} // private function render
+	} // protected function render
 	
 	
 	
 	
 	/**
 	 * Renders a layout and returns it as a string
+	 * also manages the basic layout system inspired fro django template system
 	 * 
 	 * @param string $layout
 	 * @param array $contextArray
 	 */
 	public static function _render($layout, $contextArray=array(),$strip= true){
-		$filename = APP_PATH .'/'. miniMVC::getLayoutDirectory() .'/'. $layout .'.php';
+		$filename = APP_PATH .'/'. miniVC::getLayoutDirectory() .'/'. $layout .'.php';
 		if(file_exists($filename)){
 			ob_start();
+			// get the context
 			$context = (object) $contextArray;
+			
+			// get the layout
 			include $filename;
+			
+			// getting the output buffer
 			$ret = ob_get_contents();
 			ob_end_clean();
 			
-			
-			if( preg_match("|/\*\*[\s]+include[\s]+([A-Za-z0-9\/_-]+)[\s]+\*\*/|sm", $ret, $matches) ) {
-				
+			/*
+			* Manage A layout includes
+			*/
+			if( preg_match("|/\*\*[\s]+include[\s]+([A-Za-z0-9\/_-]+)[\s]+\*\*/|sm", $ret, $matches) ) {	
 				$include_layout = $matches[1];
 				$ret = str_replace($matches[0], self::_render($include_layout, $contextArray), $ret);
 			}
 			
+			
+			/**
+			* Manage the extending of a layout
+			*/
 			if( preg_match("|/\*\*[\s]+extends[\s]+([A-Za-z0-9_-]+)[\s]+\*\*/|sm", $ret, $matches) ) {
 				$father_layout = $matches[1];
 				$subs = array();
-				preg_match_all("|/\*\*[\s]+block[\s]+([A-Za-z0-9_-]+)[\s]+\*\*/(.*)?/\*\*[\s]+endblock[\s]+\*\*/|sm", $ret, $blocks);
+				
+				// Extracting all boxes
+				preg_match_all("|/\*\*[\s]+block[\s]+([A-Za-z0-9_-]+)[\s]+\*\*/(.*?)/\*\*[\s]+endblock[\s]+\*\*/|sm", $ret, $blocks);
+				
 				for ($i=0;$i<count($blocks[0]);$i++) {
 					$subs[$blocks[1][$i]] = $blocks[2][$i];
 				}
 				
-				$father = self::_render($father_layout,$contextArray,false);
-
-				preg_match_all("|/\*\*[\s]+block[\s]+([A-Za-z0-9_-]+)[\s]+\*\*/(.*)?/\*\*[\s]+endblock[\s]+\*\*/|sm", $father, $father_blocks );
-
+				// render the father layout
+				$father = self::_render($father_layout,$contextArray,false);				
+				preg_match_all("|/\*\*[\s]+block[\s]+([A-Za-z0-9_-]+)[\s]+\*\*/(.*?)/\*\*[\s]+endblock[\s]+\*\*/|sm", $father, $father_blocks );
+				
 				for ($i=0;$i<count($father_blocks[0]);$i++) {
 					$block_name = $father_blocks[1][$i];
 					$subs[$block_name] = preg_replace("|/\*\*[\s]+super[\s]+\*\*/|sm", $father_blocks[2][$i], $subs[$block_name]);
@@ -396,14 +419,15 @@ class Controller
 		}
 	} // public static function _render
 	
+	
 	/**
-	 * Fa una richiesta in get
+	 * A GET request with cURL
 	 * 
-	 * @param unknown_type $url
-	 * @param unknown_type $data
+	 * @param string $url
+	 * @param mixed $data
 	 */
 	public static function _getRequest($url, $data=null){
-		if($data != null){
+		if($data != null && is_array($data)){
 			foreach($data as $key => $val){
 				$tmpArr[] = "{$key}={$val}";
 			}
@@ -423,11 +447,10 @@ class Controller
 	
 	/**
 	 * render the 404 layout sending right header response
-	 * Enter description here ...
 	 */
 	public static function render404(){
 		header('HTTP/1.0 404 NOT FOUND');
-		if(file_exists(APP_PATH . '/'.miniMVC::getLayoutDirectory().'/404.php')){
+		if(file_exists(APP_PATH . '/'.miniVC::getLayoutDirectory().'/404.php')){
 			echo self::_render('404');
 		}else{
 			echo '<h1>404 Not Found</h1>';
